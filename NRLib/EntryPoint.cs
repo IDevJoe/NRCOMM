@@ -123,6 +123,7 @@ namespace NRLib
 
         public void Publish(string description, ConnectionEstablishCallback callback)
         {
+            if (_tcp == null || !_tcp.Connected) return;
             uint n = Packet.WatchNonce(packet =>
             {
                 TcpSPublishReply repl = new TcpSPublishReply(packet);
@@ -138,6 +139,11 @@ namespace NRLib
             var pub = new TcpCPublish(description, n);
             byte[] x = pub.Build();
             _tcpConnection.Stream.Write(x);
+        }
+
+        public void DiscoverApps(string description)
+        {
+            
         }
     }
 }
