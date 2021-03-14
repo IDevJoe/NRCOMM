@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NREP", "NREP\NREP.csproj", "{C0C4C30F-5B52-4F7D-AD10-4631A6D5F94E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NRLib", "NRLib\NRLib.csproj", "{2BB45D50-7926-45D7-813E-A67B8CD57889}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NRTest", "NRTest\NRTest.csproj", "{5E9B1083-1E43-469F-BF62-3A2B1DA4F755}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C0C4C30F-5B52-4F7D-AD10-4631A6D5F94E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C0C4C30F-5B52-4F7D-AD10-4631A6D5F94E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BB45D50-7926-45D7-813E-A67B8CD57889}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BB45D50-7926-45D7-813E-A67B8CD57889}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BB45D50-7926-45D7-813E-A67B8CD57889}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BB45D50-7926-45D7-813E-A67B8CD57889}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5E9B1083-1E43-469F-BF62-3A2B1DA4F755}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E9B1083-1E43-469F-BF62-3A2B1DA4F755}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E9B1083-1E43-469F-BF62-3A2B1DA4F755}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E9B1083-1E43-469F-BF62-3A2B1DA4F755}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

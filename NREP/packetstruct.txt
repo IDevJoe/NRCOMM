@@ -1,0 +1,87 @@
+﻿PACKET STRUCTURE DOCUMENTATION
+-------------------------------
+
+Layer 1
+    00 00 00 00 00 00 00 00 00 00 ***
+    1  2  (    3    ) (    4    ) (5)
+    
+    1. Reserved (always 00)
+    2. Packet Type (see packet types below)
+    3. Nonce (4b, uint)
+    4. Content Size (4b, unit)
+    5. Payload Data
+    
+Packet Types
+    01 - Discover (C, UDP)
+    02 - Discover Reply (S, UDP)
+    03 - Hello (S, SSL)
+    04 - Publish (C, SSL)
+    05 - Publish Reply (S, SSL)
+    06 - Discover App Instances (C, SSL)
+    07 - App Instance Reply (S, SSL)
+    08 - Open Socket (C, SSL)
+    09 - Socket Opened (S, SSL)
+    0A - Socket Refused (S, SSL)
+    0B - Ping (C, SSL)
+    0C - Ping Reply (S, SSL)
+    0D - Open Socket Request (S, SSL)
+    0E - Socket Request Reply (C, SSL)
+    0F - Close Socket (C, SSL)
+    10 - Socket Closed (S, SSL)
+    11 - Send App Data (C, SSL)
+    12 - App Data (S, SSL)
+    
+
+(01) Discover - NREP listens for UDP broadcasts on port 2888
+    Packet Length: 0
+    
+(02) Discover Reply - A reply with communication information
+    Packet Length: Variable
+    
+    00 00 00 00 00 00 00 00 *** 00 00 00 00 ***
+    (    1    ) (    2    ) (3) (    4    ) (5)
+    
+    1. TCP Port Number (4b, uint)
+    2. X509 Length (4b, uint)
+    3. X509 Certificate (Variable)
+
+    ** NREP MAY BE CONFIGURED TO COMMUNICATE INSECURELY. IF THIS IS THE CASE, THE X509 LENGTH WILL BE 0,
+       AND THE X509 CERTIFICATE WILL BE COMPLETELY OMITTED. CLIENTS SHOULD DISPLAY A WARNING BEFORE ESTABLISHING
+       A CONNECTION.
+
+(03) Hello - Sent to the client to acknowledge a successful connection and SSL handshake
+    Packet Length: 0
+
+(04) Publish - Sent to publish an app to the entry point and routers.
+    00 00 00 00 ***
+    (    1    ) (2)
+    
+    1. App Description Length (4b, uint)
+    2. App Description
+    
+(05) Publish Reply - Send to acknowledge a publish request
+    Packet Length: 11
+    
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    1  (             2             ) (             3             )
+    
+    1. Successful
+    2. App ID
+    3. Instance ID
+    
+(06) Discover App Instances - Sent to discover an app on the network
+    Packet Length: 10
+    
+    00 00 00 00 00 00 00 00 00 00
+    (             1             )
+    
+    1. App ID
+    
+(07) App Instance Reply - Contains a list of app instances on the network
+    Packet Length: Variable, >=11
+    
+    00 [00 00 00 00 00 00 00 00 00 00]
+    1  (              2              )
+    
+    1. Number of elements
+    2. List of instance IDs

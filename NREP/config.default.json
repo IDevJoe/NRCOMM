@@ -1,0 +1,7 @@
+﻿{
+  "router": null,
+  "x509": null,
+  "ca": null,
+  "default": true,
+  "minLogLevel": "INFORMATION"
+}
