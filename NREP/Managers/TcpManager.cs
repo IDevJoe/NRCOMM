@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -16,6 +17,9 @@ namespace NREP.Managers
     {
         private static TcpListener _listener;
         public static int PortNumber { get; private set; }
+
+        internal static Dictionary<Socket, List<AppManager.PublishedApp>> AppsByConnection =
+            new Dictionary<Socket, List<AppManager.PublishedApp>>();
         public static void StartTCP()
         {
             Random rand = new Random();
@@ -43,6 +47,7 @@ namespace NREP.Managers
             {
                 Socket sock = await _listener.AcceptSocketAsync();
                 Log.Debug("Accepted connection from {Address}", sock.RemoteEndPoint.ToString());
+                AppsByConnection.Add(sock, new List<AppManager.PublishedApp>());
                 _ = Task.Run(async () =>
                 {
                     try
@@ -53,6 +58,13 @@ namespace NREP.Managers
                     {
                         Log.Error(e, "An exception occurred while handling a TCP connection");
                         sock.Close();
+                        foreach(AppManager.PublishedApp app in AppsByConnection[sock])
+                        {
+                            AppManager.PublishedApps.Remove(app);
+                            Log.Debug("Removed app {App} ({AppID} - {InstId}) during cleanup operation", app.Description, app.AppId, app.InstanceId);
+                        }
+
+                        AppsByConnection.Remove(sock);
                     }
                 });
             }

@@ -20,16 +20,11 @@ Packet Types
     06 - Discover App Instances (C, SSL)
     07 - App Instance Reply (S, SSL)
     08 - Open Socket (C, SSL)
-    09 - Socket Opened (S, SSL)
-    0A - Socket Refused (S, SSL)
-    0B - Ping (C, SSL)
-    0C - Ping Reply (S, SSL)
-    0D - Open Socket Request (S, SSL)
-    0E - Socket Request Reply (C, SSL)
-    0F - Close Socket (C, SSL)
-    10 - Socket Closed (S, SSL)
-    11 - Send App Data (C, SSL)
-    12 - App Data (S, SSL)
+    09 - Socket Control (C/S, SSL)
+    0A - Ping (C, SSL)
+    0B - Ping Reply (S, SSL)
+    1C - Send App Data (C, SSL)
+    1D - App Data (S, SSL)
     
 
 (01) Discover - NREP listens for UDP broadcasts on port 2888
@@ -85,3 +80,45 @@ Packet Types
     
     1. Number of elements
     2. List of instance IDs
+    
+(08) Open Socket - Sent to request a socket to an app
+    Packet Length: 10
+    
+    00 00 00 00 00 00 00 00 00 00
+    (             1             )
+    
+    1. Instance ID to open socket to
+    
+    ** THIS BEGINS THE SOCKET NEGOTIATIONS. IT IS IMPERATIVE THAT A NONCE IS SENT
+       WITH THIS REQUEST, AS THE FIRST SOCKET CONTROL SIGNAL WILL BE SENT WITH IT.
+       
+       OPEN SOCKET FLOW:
+          OPEN SOCKET -> SOCKET CONTROL TO REQUESTOR WITH SOCKET ID -> SOCKET CONTROL TO RECEIVER
+          -> RECEIVER ACKNOWLEDGES CONTROL AND ACCEPTS/REFUSES -> SOCKET CONTROL TO REQUESTOR
+          -> DATA FLOW BEGINS
+
+(09) Socket Control - Controls sockets
+    [   Socket control packets differ from normal packets, in that it requires bitwise operations
+        to be understood. The nonce for these packets will always be zeroed except when the
+        OPEN ACK flag is set.                                                                       ]
+        
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    (             1             ) 2  (            ?3?            )
+    
+    1. Socket ID
+    2. Flags
+    3. Instance ID (instance ID, sent only if Open Request bit is sent)
+        
+    Flag Bits
+        Bit 1 (>> 7 & 0x1). Open ACK (S ONLY)
+            Acknowledges an open request, and allows the requestor to store the socket ID
+        Bit 2 (>> 6 & 0x1). Open Request (S ONLY)
+            ON when a new connection request is incoming.
+        Bit 3 (>> 5 & 0x1). Accept Connection (C/RECEIVER ONLY)
+            Accepts an incoming connection
+        Bit 4 (>> 4 & 0x1). Refuse Connection (C/RECEIVER ONLY)
+            Refuses an incoming connection
+        Bit 5 (>> 3 & 0x1). Ready (S ONLY)
+            Sent to the requestor when the connection is ready to accept data
+        Bit 6 (>> 2 & 0x1). Close (ALL)
+            Sent to close the connection

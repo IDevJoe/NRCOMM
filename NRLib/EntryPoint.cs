@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using NRLib.Packets;
 using Serilog;
@@ -29,7 +32,7 @@ namespace NRLib
         
         public X509Certificate2 ClientCertificate { get; private set; }
 
-        private TcpConnection _tcpConnection;
+        internal TcpConnection _tcpConnection;
 
         internal EntryPoint(IPEndPoint ep, X509Certificate2 cert)
         {
@@ -141,9 +144,30 @@ namespace NRLib
             _tcpConnection.Stream.Write(x);
         }
 
-        public void DiscoverApps(string description)
+        public async Task<byte[][]> DiscoverApps(string description)
         {
-            
+            byte[] AppId = new byte[10];
+            using (SHA1 sha1 = SHA1.Create())
+            {
+                AppId = sha1.ComputeHash(Encoding.UTF8.GetBytes(description)).Take(10).ToArray();
+            }
+
+            byte[][] reply = null;
+            TaskCompletionSource<byte[][]> ss = new TaskCompletionSource<byte[][]>();
+            uint nonce = Packet.WatchNonce(packet =>
+            {
+                var pack = new TcpSAppInstanceReply(packet);
+                ss.SetResult(pack.Instances);
+            });
+            var c = new TcpCDiscoverAppInstances(AppId, nonce);
+            _tcpConnection.Stream.Write(c.Build());
+            return await ss.Task;
+        }
+
+        public static void StandardSocketControlHandler(Packet packet)
+        {
+            var pa = new TcpCSSocketControl(packet);
+            Log.Debug("Socket Control Detail for socket {Socket}: [{Flags}] {Extra}", pa.SocketId, pa.ReadableFlags, pa.InstanceId);
         }
     }
 }
