@@ -34,6 +34,8 @@ namespace NRLib
 
         internal TcpConnection _tcpConnection;
 
+        public Dictionary<string, AppConnection> Connections = new Dictionary<string, AppConnection>();
+
         internal EntryPoint(IPEndPoint ep, X509Certificate2 cert)
         {
             Address = ep;
@@ -73,7 +75,8 @@ namespace NRLib
         {
             _tcpConnection = new TcpConnection()
             {
-                Socket = _tcp.Client
+                Socket = _tcp.Client,
+                Ref = this
             };
             using (NetworkStream stream = _tcp.GetStream())
             {
@@ -122,7 +125,7 @@ namespace NRLib
             return certificate.Equals(Certificate);
         }
 
-        public delegate void ConnectionEstablishCallback(Stream dataStream);
+        public delegate void ConnectionEstablishCallback(AppConnection dataStream);
 
         public void Publish(string description, ConnectionEstablishCallback callback)
         {
@@ -167,7 +170,34 @@ namespace NRLib
         public static void StandardSocketControlHandler(Packet packet)
         {
             var pa = new TcpCSSocketControl(packet);
+            var ep = ((EntryPoint) packet.Connection.Ref);
             Log.Debug("Socket Control Detail for socket {Socket}: [{Flags}] {Extra}", pa.SocketId, pa.ReadableFlags, pa.InstanceId);
+            var x = ep.Connections[AppConnection.IdToString(pa.SocketId)];
+            StoredApp app = null;
+            if (pa.CheckFlag(TcpCSSocketControl.OPEN_REQUEST))
+            {
+                if (x == null)
+                {
+                    x = new AppConnection(pa.InstanceId, ep);
+                    x.SocketId = pa.SocketId;
+                }
+                else
+                {
+                    x.Loopback = true;
+                    Log.Debug("Connection {SID} switched to loopback mode", pa.SocketId);
+                }
+                app = ep._registeredApps.FirstOrDefault(e => e.InstanceId.SequenceEqual(x.InstanceId));
+                app.Callback(x);
+            }
+            if (x == null)
+            {
+                return;
+            }
+
+            if (pa.CheckFlag(TcpCSSocketControl.CLOSE))
+            {
+                x.Close();
+            }
         }
     }
 }

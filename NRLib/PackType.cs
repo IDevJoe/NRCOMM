@@ -14,6 +14,7 @@
         TCP_S_PUBLISH_REPLY = 5,
         TCP_S_APP_INSTANCE_REPLY = 7,
         
-        TCP_CS_SOCKET_CONTROL = 9
+        TCP_CS_SOCKET_CONTROL = 9,
+        TCP_CS_SOCKET_DATA = 10
     }
 }

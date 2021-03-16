@@ -7,5 +7,6 @@ namespace NRLib
     {
         public Socket Socket;
         public Stream Stream;
+        public object Ref;
     }
 }

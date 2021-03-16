@@ -84,15 +84,8 @@ namespace NREP
             else
             {
                 byte[] sockId = null;
-                using (SHA1 sha1 = SHA1.Create())
-                {
-                    sockId = sha1.ComputeHash(Encoding.UTF8.GetBytes(packet.Nonce + "-" +
-                                                                     packet.Connection.Socket.RemoteEndPoint + "-" +
-                                                                     app.Description)).Take(10).ToArray();
-                }
-                reply = new TcpCSSocketControl(sockId,
-                    TcpCSSocketControl.OPEN_ACK, packet.Nonce).Build();
-                app.Connection.Stream.Write((new TcpCSSocketControl(sockId, TcpCSSocketControl.OPEN_REQUEST, 0, app.InstanceId)).Build());
+                AppConnection connection = new AppConnection(packet.Connection, app);
+                connection.SendInitialState(packet);
             }
 
             packet.Connection.Stream.Write(reply);

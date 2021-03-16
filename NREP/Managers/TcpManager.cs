@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -58,6 +59,13 @@ namespace NREP.Managers
                     {
                         Log.Error(e, "An exception occurred while handling a TCP connection");
                         sock.Close();
+                        var x = AppConnection.Connections.Where(e =>
+                            e.Value.Connection.Socket == sock || e.Value.App.Connection.Socket == sock);
+                        foreach (var keyValuePair in x)
+                        {
+                            Log.Debug("Closed virtual connection {SID} during cleanup", keyValuePair.Value.SocketId);
+                            keyValuePair.Value.ForceClose();
+                        }
                         foreach(AppManager.PublishedApp app in AppsByConnection[sock])
                         {
                             AppManager.PublishedApps.Remove(app);

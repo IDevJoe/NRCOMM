@@ -21,10 +21,7 @@ Packet Types
     07 - App Instance Reply (S, SSL)
     08 - Open Socket (C, SSL)
     09 - Socket Control (C/S, SSL)
-    0A - Ping (C, SSL)
-    0B - Ping Reply (S, SSL)
-    1C - Send App Data (C, SSL)
-    1D - App Data (S, SSL)
+    0A - App Data (C/S, SSL)
     
 
 (01) Discover - NREP listens for UDP broadcasts on port 2888
@@ -122,3 +119,11 @@ Packet Types
             Sent to the requestor when the connection is ready to accept data
         Bit 6 (>> 2 & 0x1). Close (ALL)
             Sent to close the connection
+            
+(OA) Socket Data - Sends data through the socket
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 ***
+    (             1             ) (    2    ) (3)
+    
+    1. Socket ID
+    2. Data Length
+    3. Data
