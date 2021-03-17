@@ -17,6 +17,8 @@ namespace NREP
             Packet.StorePacketRoutine(PackType.TCP_C_PUBLISH, Publish);
             Packet.StorePacketRoutine(PackType.TCP_C_DISCOVER_APP_INSTANCES, DiscoverApp);
             Packet.StorePacketRoutine(PackType.TCP_C_OPEN_SOCKET, OpenSocket);
+            Packet.StorePacketRoutine(PackType.TCP_CS_SOCKET_CONTROL, ConnectionControl);
+            Packet.StorePacketRoutine(PackType.TCP_CS_SOCKET_DATA, SocketData);
         }
 
         public static void UdpCDiscover(Packet pack)
@@ -89,6 +91,20 @@ namespace NREP
             }
 
             packet.Connection.Stream.Write(reply);
+        }
+
+        public static void ConnectionControl(Packet packet)
+        {
+            TcpCSSocketControl control = new TcpCSSocketControl(packet);
+            var conn = AppConnection.Connections[AppConnection.IdToString(control.SocketId)];
+            conn.ProcessControl(packet);
+        }
+
+        public static void SocketData(Packet packet)
+        {
+            TcpCSSocketData data = new TcpCSSocketData(packet);
+            var conn = AppConnection.Connections[AppConnection.IdToString(data.SocketId)];
+            conn.Send(packet.Connection.Socket, data.SocketData);
         }
     }
 }

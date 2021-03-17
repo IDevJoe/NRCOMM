@@ -172,7 +172,8 @@ namespace NRLib
             var pa = new TcpCSSocketControl(packet);
             var ep = ((EntryPoint) packet.Connection.Ref);
             Log.Debug("Socket Control Detail for socket {Socket}: [{Flags}] {Extra}", pa.SocketId, pa.ReadableFlags, pa.InstanceId);
-            var x = ep.Connections[AppConnection.IdToString(pa.SocketId)];
+            AppConnection x = null;
+            ep.Connections.TryGetValue(AppConnection.IdToString(pa.SocketId), out x);
             StoredApp app = null;
             if (pa.CheckFlag(TcpCSSocketControl.OPEN_REQUEST))
             {
@@ -194,10 +195,29 @@ namespace NRLib
                 return;
             }
 
+            if (pa.CheckFlag(TcpCSSocketControl.READY))
+            {
+                x.Open = true;
+                x.ConnectCompletionSource.SetResult(true);
+            }
+
             if (pa.CheckFlag(TcpCSSocketControl.CLOSE))
             {
-                x.Close();
+                if (!x.Open)
+                {
+                    x.ConnectCompletionSource.SetResult(false);
+                }
             }
+        }
+
+        public static void StandardDataHandler(Packet packet)
+        {
+            TcpCSSocketData data = new TcpCSSocketData(packet);
+            var ep = ((EntryPoint) packet.Connection.Ref);
+            AppConnection x = null;
+            ep.Connections.TryGetValue(AppConnection.IdToString(data.SocketId), out x);
+            if (x == null) return;
+            x.Stream._buffer.AddRange(data.SocketData);
         }
     }
 }

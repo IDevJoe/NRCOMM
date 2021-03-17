@@ -52,13 +52,13 @@ namespace NREP
         public void ProcessControl(Packet packet)
         {
             TcpCSSocketControl control = new TcpCSSocketControl(packet);
-            if(Connection.Socket == packet.Connection.Socket) ProcessReqControl(control);
-            else ProcessRecControl(control);
+            if(App.Connection.Socket == packet.Connection.Socket) ProcessRecControl(control);
+            else ProcessReqControl(control);
         }
 
         public void Send(Socket source, byte[] data)
         {
-            if (Accepted) return;
+            if (!Accepted) return;
             TcpCSSocketData da1 = new TcpCSSocketData(SocketId, data);
             if (source == Connection.Socket)
             {
