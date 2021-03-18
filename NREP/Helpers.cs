@@ -1,6 +1,4 @@
 ﻿using System.IO;
-using System.Net.Sockets;
-using NREP.Managers;
 using NRLib;
 
 namespace NREP

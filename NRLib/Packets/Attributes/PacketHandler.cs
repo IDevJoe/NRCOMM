@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
-using NRLib;
 using Serilog;
 
 namespace NRLib.Packets.Attributes

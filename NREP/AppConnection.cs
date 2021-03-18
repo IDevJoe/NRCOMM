@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using NRLib;
 using NRLib.Packets;
 
@@ -12,9 +12,9 @@ namespace NREP
 {
     public class AppConnection
     {
-        public AppManager.PublishedApp App = null;
+        public AppManager.PublishedApp App;
         public TcpConnection Connection;
-        public bool Accepted = false;
+        public bool Accepted;
         public byte[] SocketId;
 
         public static Dictionary<string, AppConnection> Connections = new Dictionary<string, AppConnection>();
@@ -42,80 +42,80 @@ namespace NREP
             return s;
         }
 
-        public void SendInitialState(Packet requestPacket)
+        public async Task SendInitialState(Packet requestPacket)
         {
             Connection.Stream.Write((new TcpCSSocketControl(SocketId,
-                TcpCSSocketControl.OPEN_ACK, requestPacket.Nonce)).Build());
-            App.Connection.Stream.Write((new TcpCSSocketControl(SocketId, TcpCSSocketControl.OPEN_REQUEST, 0, App.InstanceId)).Build());
+                TcpCSSocketControl.OpenAck, requestPacket.Nonce)).Build());
+            await App.Connection.Stream.WriteAsync((new TcpCSSocketControl(SocketId, TcpCSSocketControl.OpenRequest, 0, App.InstanceId)).Build());
         }
 
-        public void ProcessControl(Packet packet)
+        public async Task ProcessControl(Packet packet)
         {
             TcpCSSocketControl control = new TcpCSSocketControl(packet);
-            if(App.Connection.Socket == packet.Connection.Socket) ProcessRecControl(control);
-            else ProcessReqControl(control);
+            if(App.Connection.Socket == packet.Connection.Socket) await ProcessRecControl(control);
+            else await ProcessReqControl(control);
         }
 
-        public void Send(Socket source, byte[] data)
+        public async Task Send(Socket source, byte[] data)
         {
             if (!Accepted) return;
             TcpCSSocketData da1 = new TcpCSSocketData(SocketId, data);
             if (source == Connection.Socket)
             {
-                App.Connection.Stream.Write(da1.Build());
+                await App.Connection.Stream.WriteAsync(da1.Build());
             } else if (source == App.Connection.Socket)
             {
-                Connection.Stream.Write(da1.Build());
+                await Connection.Stream.WriteAsync(da1.Build());
             }
         }
 
-        public void ProcessReqControl(TcpCSSocketControl control)
+        public async Task ProcessReqControl(TcpCSSocketControl control)
         {
             byte newControl = 0;
-            if (control.CheckFlag(TcpCSSocketControl.CLOSE))
+            if (control.CheckFlag(TcpCSSocketControl.Close))
             {
-                newControl |= TcpCSSocketControl.CLOSE;
+                newControl |= TcpCSSocketControl.Close;
                 Connections.Remove(IdToString(SocketId));
             }
-            Connection.Stream.Write((new TcpCSSocketControl(SocketId, newControl)).Build());
+            await Connection.Stream.WriteAsync((new TcpCSSocketControl(SocketId, newControl)).Build());
         }
 
-        public void ProcessRecControl(TcpCSSocketControl control)
+        public async Task ProcessRecControl(TcpCSSocketControl control)
         {
             byte newControl = 0;
             bool close = false;
             if (!Accepted)
             {
-                if (control.CheckFlag(TcpCSSocketControl.ACCEPT_CONNECTION))
+                if (control.CheckFlag(TcpCSSocketControl.AcceptConnection))
                 {
                     Accepted = true;
-                    newControl |= TcpCSSocketControl.READY;
-                } else if (control.CheckFlag(TcpCSSocketControl.REFUSE_CONNECTION))
+                    newControl |= TcpCSSocketControl.Ready;
+                } else if (control.CheckFlag(TcpCSSocketControl.RefuseConnection))
                 {
-                    newControl |= TcpCSSocketControl.CLOSE;
+                    newControl |= TcpCSSocketControl.Close;
                     close = true;
                 }
             }
 
-            if (control.CheckFlag(TcpCSSocketControl.CLOSE))
+            if (control.CheckFlag(TcpCSSocketControl.Close))
             {
-                newControl |= TcpCSSocketControl.CLOSE;
+                newControl |= TcpCSSocketControl.Close;
                 close = true;
             }
-            Connection.Stream.Write((new TcpCSSocketControl(SocketId, newControl)).Build());
+            await Connection.Stream.WriteAsync((new TcpCSSocketControl(SocketId, newControl)).Build());
             if (close)
             {
                 Connections.Remove(IdToString(SocketId));
             }
         }
 
-        public void ForceClose()
+        public async Task ForceClose()
         {
-            byte[] control = (new TcpCSSocketControl(SocketId, TcpCSSocketControl.CLOSE)).Build();
+            byte[] control = (new TcpCSSocketControl(SocketId, TcpCSSocketControl.Close)).Build();
             if(Connection.Socket.Connected)
-                Connection.Stream.Write(control);
+                await Connection.Stream.WriteAsync(control);
             if(App.Connection.Socket.Connected)
-                App.Connection.Stream.Write(control);
+                await App.Connection.Stream.WriteAsync(control);
         }
     }
 }

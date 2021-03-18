@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
@@ -44,7 +43,7 @@ namespace NRLib
         /// </summary>
         public X509Certificate2 ClientCertificate { get; private set; }
 
-        internal TcpConnection _tcpConnection;
+        internal TcpConnection TCPConnection;
 
         internal Dictionary<string, AppConnection> Connections = new Dictionary<string, AppConnection>();
 
@@ -74,7 +73,7 @@ namespace NRLib
                 catch (Exception e)
                 {
                     Log.Error(e, "An error occurred in the TCP Client loop");
-                    Close();
+                    await Close();
                 }
             });
         }
@@ -97,19 +96,19 @@ namespace NRLib
 
         private async Task BeginLoop()
         {
-            _tcpConnection = new TcpConnection()
+            TCPConnection = new TcpConnection()
             {
                 Socket = _tcp.Client,
                 Ref = this
             };
             using (NetworkStream stream = _tcp.GetStream())
             {
-                _tcpConnection.Stream = stream;
+                TCPConnection.Stream = stream;
                 if (Certificate == null)
                 {
                     while (true)
                     {
-                        Packet pkt = new Packet(stream, _tcpConnection);
+                        Packet pkt = new Packet(stream, TCPConnection);
                         pkt.ExecuteRoutine();
                     }
                 }
@@ -117,7 +116,7 @@ namespace NRLib
                 {
                     using (SslStream str2 = new SslStream(stream))
                     {
-                        _tcpConnection.Stream = str2;
+                        TCPConnection.Stream = str2;
                         X509Certificate2Collection coll = null;
                         if(ClientCertificate != null)
                             coll = new X509Certificate2Collection(ClientCertificate);
@@ -136,7 +135,7 @@ namespace NRLib
                         }
                         while (true)
                         {
-                            Packet pkt = new Packet(str2, _tcpConnection);
+                            Packet pkt = new Packet(str2, TCPConnection);
                             pkt.ExecuteRoutine();
                         }
                     }
@@ -149,7 +148,7 @@ namespace NRLib
             return certificate.Equals(Certificate);
         }
 
-        public delegate void ConnectionEstablishCallback(AppConnection dataStream);
+        public delegate Task ConnectionEstablishCallback(AppConnection dataStream);
 
         /// <summary>
         /// Publishes a new app to the entry point
@@ -160,21 +159,24 @@ namespace NRLib
         public async Task Publish(string description, ConnectionEstablishCallback callback)
         {
             if (_tcp == null || !_tcp.Connected) return;
-            uint n = Packet.WatchNonce(packet =>
+            uint n = Packet.WatchNonce(async packet =>
             {
-                TcpSPublishReply repl = new TcpSPublishReply(packet);
-                _registeredApps.Add(new StoredApp()
+                await Task.Run(() =>
                 {
-                    AppId = repl.AppId,
-                    Callback = callback,
-                    Description = description,
-                    InstanceId = repl.InstanceId
+                    TcpSPublishReply repl = new TcpSPublishReply(packet);
+                    _registeredApps.Add(new StoredApp()
+                    {
+                        AppId = repl.AppId,
+                        Callback = callback,
+                        Description = description,
+                        InstanceId = repl.InstanceId
+                    });
+                    Log.Debug("App {Description} ({AppId}) registered as instance {InstanceId}", description, repl.ReadableAppId, repl.ReadableInstanceId);
                 });
-                Log.Debug("App {Description} ({AppId}) registered as instance {InstanceId}", description, repl.ReadableAppId, repl.ReadableInstanceId);
             });
             var pub = new TcpCPublish(description, n);
             byte[] x = pub.Build();
-            await _tcpConnection.Stream.WriteAsync(x);
+            await TCPConnection.Stream.WriteAsync(x);
         }
 
         /// <summary>
@@ -184,25 +186,27 @@ namespace NRLib
         /// <returns>An array of instance IDs for running apps</returns>
         public async Task<byte[][]> DiscoverApps(string description)
         {
-            byte[] AppId = new byte[10];
+            byte[] appId = new byte[10];
             using (SHA1 sha1 = SHA1.Create())
             {
-                AppId = sha1.ComputeHash(Encoding.UTF8.GetBytes(description)).Take(10).ToArray();
+                appId = sha1.ComputeHash(Encoding.UTF8.GetBytes(description)).Take(10).ToArray();
             }
-
-            byte[][] reply = null;
+            
             TaskCompletionSource<byte[][]> ss = new TaskCompletionSource<byte[][]>();
-            uint nonce = Packet.WatchNonce(packet =>
+            uint nonce = Packet.WatchNonce(async packet =>
             {
-                var pack = new TcpSAppInstanceReply(packet);
-                ss.SetResult(pack.Instances);
+                await Task.Run(() =>
+                {
+                    var pack = new TcpSAppInstanceReply(packet);
+                    ss.SetResult(pack.Instances);
+                });
             });
-            var c = new TcpCDiscoverAppInstances(AppId, nonce);
-            _tcpConnection.Stream.Write(c.Build());
+            var c = new TcpCDiscoverAppInstances(appId, nonce);
+            TCPConnection.Stream.Write(c.Build());
             return await ss.Task;
         }
 
-        public static void StandardSocketControlHandler(Packet packet)
+        public static async Task StandardSocketControlHandler(Packet packet)
         {
             var pa = new TcpCSSocketControl(packet);
             var ep = ((EntryPoint) packet.Connection.Ref);
@@ -210,7 +214,7 @@ namespace NRLib
             AppConnection x = null;
             ep.Connections.TryGetValue(AppConnection.IdToString(pa.SocketId), out x);
             StoredApp app = null;
-            if (pa.CheckFlag(TcpCSSocketControl.OPEN_REQUEST))
+            if (pa.CheckFlag(TcpCSSocketControl.OpenRequest))
             {
                 if (x == null)
                 {
@@ -220,23 +224,23 @@ namespace NRLib
                 else
                 {
                     x.Loopback = true;
-                    Log.Debug("Connection {SID} switched to loopback mode", pa.SocketId);
+                    Log.Debug("Connection {Sid} switched to loopback mode", pa.SocketId);
                 }
                 app = ep._registeredApps.FirstOrDefault(e => e.InstanceId.SequenceEqual(x.InstanceId));
-                app.Callback(x);
+                await app.Callback(x);
             }
             if (x == null)
             {
                 return;
             }
 
-            if (pa.CheckFlag(TcpCSSocketControl.READY))
+            if (pa.CheckFlag(TcpCSSocketControl.Ready))
             {
                 x.Open = true;
                 x.ConnectCompletionSource.SetResult(true);
             }
 
-            if (pa.CheckFlag(TcpCSSocketControl.CLOSE))
+            if (pa.CheckFlag(TcpCSSocketControl.Close))
             {
                 if (!x.Open)
                 {
@@ -245,14 +249,17 @@ namespace NRLib
             }
         }
 
-        public static void StandardDataHandler(Packet packet)
+        public static async Task StandardDataHandler(Packet packet)
         {
-            TcpCSSocketData data = new TcpCSSocketData(packet);
-            var ep = ((EntryPoint) packet.Connection.Ref);
-            AppConnection x = null;
-            ep.Connections.TryGetValue(AppConnection.IdToString(data.SocketId), out x);
-            if (x == null) return;
-            x.Stream._buffer.AddRange(data.SocketData);
+            await Task.Run(() =>
+            {
+                TcpCSSocketData data = new TcpCSSocketData(packet);
+                var ep = ((EntryPoint) packet.Connection.Ref);
+                AppConnection x = null;
+                ep.Connections.TryGetValue(AppConnection.IdToString(data.SocketId), out x);
+                if (x == null) return;
+                x.Stream.Buffer.AddRange(data.SocketData);
+            });
         }
     }
 }

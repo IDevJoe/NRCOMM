@@ -10,8 +10,8 @@ namespace NRLib
     /// </summary>
     public class NRStream : Stream
     {
-        internal List<byte> _buffer = new List<byte>();
-        internal event Send _onSend;
+        internal List<byte> Buffer = new List<byte>();
+        internal event Send OnSend;
 
         public delegate void Send(byte[] bytes);
 
@@ -25,18 +25,18 @@ namespace NRLib
         
         public override void Flush()
         {
-            _buffer.Clear();
+            Buffer.Clear();
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (_buffer.Count < count)
+            if (Buffer.Count < count)
             {
                 Task.Run(() =>
                 {
                     while (true)
                     {
-                        if (_buffer.Count >= count) break;
+                        if (Buffer.Count >= count) break;
                         Task.Delay(50).GetAwaiter().GetResult();
                     }
                 }).GetAwaiter().GetResult();
@@ -49,8 +49,8 @@ namespace NRLib
             int read = 0;
             for (int i = offset; i < offset+count; i++)
             {
-                buffer[i] = _buffer[0];
-                _buffer.RemoveAt(0);
+                buffer[i] = Buffer[0];
+                Buffer.RemoveAt(0);
                 read++;
             }
 
@@ -59,12 +59,12 @@ namespace NRLib
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new System.NotSupportedException("Seeking is not supported");
+            throw new NotSupportedException("Seeking is not supported");
         }
 
         public override void SetLength(long value)
         {
-            throw new System.NotSupportedException("Seeking is not supported");
+            throw new NotSupportedException("Seeking is not supported");
         }
 
         public override void Write(byte[] buffer, int offset, int count)
@@ -80,7 +80,7 @@ namespace NRLib
                 read[i - offset] = buffer[i];
             }
 
-            _onSend?.Invoke(read);
+            OnSend?.Invoke(read);
         }
 
         public override bool CanRead { get; }

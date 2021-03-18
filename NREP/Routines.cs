@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using NREP.Managers;
 using NRLib;
 using NRLib.Packets;
@@ -21,13 +22,13 @@ namespace NREP
             Packet.StorePacketRoutine(PackType.TCP_CS_SOCKET_DATA, SocketData);
         }
 
-        public static void UdpCDiscover(Packet pack)
+        public static async Task UdpCDiscover(Packet pack)
         {
             byte[] ts = new UdpSDiscoverReply((uint)TcpManager.PortNumber, pack.Nonce, SslManager.Certificate).Build();
-            UdpManager.Transmit(pack.ClientAddress, ts);
+            await UdpManager.Transmit(pack.ClientAddress, ts);
         }
 
-        public static void Publish(Packet pack)
+        public static async Task Publish(Packet pack)
         {
             var ap = new TcpCPublish(pack);
             byte[] reply = new byte[0];
@@ -37,7 +38,7 @@ namespace NREP
                 {
                     byte[] apByt = Encoding.UTF8.GetBytes(ap.Description);
                     byte[] appId = sha1.ComputeHash(apByt).Take(10).ToArray();
-                    byte[] instByt = Encoding.UTF8.GetBytes(pack.Connection.Socket.RemoteEndPoint.ToString() + "-" + ap);
+                    byte[] instByt = Encoding.UTF8.GetBytes(pack.Connection.Socket.RemoteEndPoint + "-" + ap);
                     byte[] instId = sha1.ComputeHash(instByt).Take(10).ToArray();
                     var pa = new AppManager.PublishedApp()
                     {
@@ -56,10 +57,10 @@ namespace NREP
                 Log.Error(e, "Error while publishing an app");
                 reply = new TcpSPublishReply(false, new byte[10], new byte[10], pack.Nonce).Build();
             }
-            pack.Connection.Stream.Write(reply);
+            await pack.Connection.Stream.WriteAsync(reply);
         }
 
-        public static void DiscoverApp(Packet packet)
+        public static async Task DiscoverApp(Packet packet)
         {
             var ap = new TcpCDiscoverAppInstances(packet);
             var apps = AppManager.PublishedApps.FindAll(x => x.AppId.SequenceEqual(ap.AppId));
@@ -70,10 +71,10 @@ namespace NREP
             }
 
             var reply = new TcpSAppInstanceReply(mapped, packet.Nonce);
-            packet.Connection.Stream.Write(reply.Build());
+            await packet.Connection.Stream.WriteAsync(reply.Build());
         }
 
-        public static void OpenSocket(Packet packet)
+        public static async Task OpenSocket(Packet packet)
         {
             var ap = new TcpCOpenSocket(packet);
             var app = AppManager.PublishedApps.FirstOrDefault(x => x.InstanceId.SequenceEqual(ap.InstanceId));
@@ -81,30 +82,29 @@ namespace NREP
             if (app == null)
             {
                 reply = new TcpCSSocketControl(new byte[10],
-                    TcpCSSocketControl.OPEN_ACK | TcpCSSocketControl.CLOSE, packet.Nonce).Build();
+                    TcpCSSocketControl.OpenAck | TcpCSSocketControl.Close, packet.Nonce).Build();
             }
             else
             {
-                byte[] sockId = null;
                 AppConnection connection = new AppConnection(packet.Connection, app);
-                connection.SendInitialState(packet);
+                await connection.SendInitialState(packet);
             }
 
-            packet.Connection.Stream.Write(reply);
+            await packet.Connection.Stream.WriteAsync(reply);
         }
 
-        public static void ConnectionControl(Packet packet)
+        public static async Task ConnectionControl(Packet packet)
         {
             TcpCSSocketControl control = new TcpCSSocketControl(packet);
             var conn = AppConnection.Connections[AppConnection.IdToString(control.SocketId)];
-            conn.ProcessControl(packet);
+            await conn.ProcessControl(packet);
         }
 
-        public static void SocketData(Packet packet)
+        public static async Task SocketData(Packet packet)
         {
             TcpCSSocketData data = new TcpCSSocketData(packet);
             var conn = AppConnection.Connections[AppConnection.IdToString(data.SocketId)];
-            conn.Send(packet.Connection.Socket, data.SocketData);
+            await conn.Send(packet.Connection.Socket, data.SocketData);
         }
     }
 }

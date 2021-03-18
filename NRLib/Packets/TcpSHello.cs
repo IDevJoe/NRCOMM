@@ -6,6 +6,7 @@ namespace NRLib.Packets
     [PacketHandler(PackType.TCP_S_HELLO)]
     public class TcpSHello : Packet
     {
+        // ReSharper disable once UnusedParameter.Local
         public TcpSHello(Packet packet)
         {
             

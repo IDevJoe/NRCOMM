@@ -11,12 +11,12 @@ namespace NREP.Managers
     {
         public static void Execute(Packet packet)
         {
-            Log.Debug("Beginning execution of packet {Packet}", packet.PacketID);
+            Log.Debug("Beginning execution of packet {Packet}", packet.PacketId);
             Type typ = null;
             bool success = PacketHandler.Associations.TryGetValue(packet.PacketType, out typ);
             if (!success)
             {
-                Log.Error("Packet {Packet} failed processing as no handler is defined for packet type {PType}", packet.PacketID, packet.PacketType);
+                Log.Error("Packet {Packet} failed processing as no handler is defined for packet type {PType}", packet.PacketId, packet.PacketType);
                 return;
             }
 
@@ -25,11 +25,11 @@ namespace NREP.Managers
 
             if (requireTcp && packet.TransType != Packet.TransportType.TCP)
             {
-                Log.Error("Packet {Packet} failed processing as TCP is required, but {Type} was used", packet.PacketID, packet.TransType);
+                Log.Error("Packet {Packet} failed processing as TCP is required, but {Type} was used", packet.PacketId, packet.TransType);
                 return;
             } if (requireUdp && packet.TransType != Packet.TransportType.UDP)
             {
-                Log.Error("Packet {Packet} failed processing as UDP is required, but {Type} was used", packet.PacketID, packet.TransType);
+                Log.Error("Packet {Packet} failed processing as UDP is required, but {Type} was used", packet.PacketId, packet.TransType);
                 return;
             }
             
@@ -37,7 +37,7 @@ namespace NREP.Managers
             watch.Start();
             packet.Handle();
             watch.Stop();
-            Log.Debug("Packet {Packet} completed execution in {Time:000}ms using handler {Handler}", packet.PacketID, watch.ElapsedMilliseconds, typ);
+            Log.Debug("Packet {Packet} completed execution in {Time:000}ms using handler {Handler}", packet.PacketId, watch.ElapsedMilliseconds, typ);
         }
     }
 }

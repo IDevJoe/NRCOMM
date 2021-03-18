@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Net;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using NRLib.Packets;
 
@@ -84,25 +82,28 @@ namespace NRLib
         {
             if (SocketId != null) return;
             ConnectCompletionSource = new TaskCompletionSource<bool>();
-            uint nonce = Packet.WatchNonce(pk =>
+            uint nonce = Packet.WatchNonce(async pk =>
             {
-                TcpCSSocketControl control = new TcpCSSocketControl(pk);
-                SocketId = control.SocketId;
-                EP.Connections.Add(IdToString(control.SocketId), this);
-                Requestor = true;
-                Stream = new NRStream();
-                Stream._onSend += StreamOn_onSend;
-                if (control.CheckFlag(TcpCSSocketControl.CLOSE))
+                await Task.Run(() =>
                 {
-                    ConnectCompletionSource.SetResult(false);
-                }
+                    TcpCSSocketControl control = new TcpCSSocketControl(pk);
+                    SocketId = control.SocketId;
+                    EP.Connections.Add(IdToString(control.SocketId), this);
+                    Requestor = true;
+                    Stream = new NRStream();
+                    Stream.OnSend += StreamOn_onSend;
+                    if (control.CheckFlag(TcpCSSocketControl.Close))
+                    {
+                        ConnectCompletionSource.SetResult(false);
+                    }
+                });
             });
             byte[] bt = new TcpCOpenSocket(InstanceId, nonce).Build();
-            await EP._tcpConnection.Stream.WriteAsync(bt);
+            await EP.TCPConnection.Stream.WriteAsync(bt);
             bool success = await ConnectCompletionSource.Task;
             if (!success)
             {
-                Close(false);
+                await Close(false);
                 throw new Exception("Connect to distant end was refused.");
             }
         }
@@ -110,7 +111,7 @@ namespace NRLib
         private void StreamOn_onSend(byte[] bytes)
         {
             var pa = new TcpCSSocketData(SocketId, bytes);
-            EP._tcpConnection.Stream.Write(pa.Build());
+            EP.TCPConnection.Stream.Write(pa.Build());
         }
 
         /// <summary>
@@ -121,8 +122,8 @@ namespace NRLib
             await Task.Run(() =>
             {
                 if ((Requestor && !Loopback) || Open) return;
-                TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.ACCEPT_CONNECTION);
-                EP._tcpConnection.Stream.Write(control.Build());
+                TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.AcceptConnection);
+                EP.TCPConnection.Stream.Write(control.Build());
                 Open = true;
             });
         }
@@ -132,13 +133,10 @@ namespace NRLib
         /// </summary>
         public async Task Refuse()
         {
-            await Task.Run(() =>
-            {
-                if ((Requestor && !Loopback) || Open) return;
-                TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.REFUSE_CONNECTION);
-                EP._tcpConnection.Stream.Write(control.Build());
-                Close(false);
-            });
+            if ((Requestor && !Loopback) || Open) return;
+            TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.RefuseConnection);
+            EP.TCPConnection.Stream.Write(control.Build());
+            await Close(false);
         }
 
         /// <summary>
@@ -152,8 +150,8 @@ namespace NRLib
                 if (!Open) return;
                 if (sendPack)
                 {
-                    TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.CLOSE);
-                    EP._tcpConnection.Stream.Write(control.Build());
+                    TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.Close);
+                    EP.TCPConnection.Stream.Write(control.Build());
                 }
 
                 Stream.Close();

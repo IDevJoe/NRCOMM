@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using NRLib.Exceptions;
 using Serilog;
 
@@ -32,7 +33,7 @@ namespace NRLib
         /// <summary>
         /// Auto generated packet ID
         /// </summary>
-        public string PacketID { get; private set; }
+        public string PacketId { get; private set; }
         
         /// <summary>
         /// How the packet arrived. Only set if the packet was received.
@@ -49,7 +50,7 @@ namespace NRLib
         /// </summary>
         public TcpConnection Connection { get; private set; }
 
-        public delegate void HandlePacket(Packet packet);
+        public delegate Task HandlePacket(Packet packet);
 
         private static Dictionary<PackType, List<HandlePacket>> PackRoutines =
             new Dictionary<PackType, List<HandlePacket>>();
@@ -93,7 +94,7 @@ namespace NRLib
             if (NonceWatch.ContainsKey(Nonce))
             {
                 Log.Debug("Nonce {Nonce} executed as {PacketType}", Nonce, PacketType);
-                NonceWatch[Nonce](this);
+                _ = NonceWatch[Nonce](this);
                 NonceWatch.Remove(Nonce);
                 return;
             }
@@ -101,7 +102,7 @@ namespace NRLib
             if (!PackRoutines.ContainsKey(PacketType)) return;
             foreach (var callback in PackRoutines[PacketType])
             {
-                callback(this);
+                _ = callback(this);
             }
         }
 
@@ -156,8 +157,8 @@ namespace NRLib
                 writ.Write((uint)Data.Length);
                 writ.Write(Data);
                 byte[] res = str.ToArray();
-                PacketID = GenPID(res);
-                if(output) Log.Debug("Built packet {Packet} ({PType}) with a total length of {Length}: {@Data}", this.PacketID, this.PacketType, res.Length, res);
+                PacketId = GenPID(res);
+                if(output) Log.Debug("Built packet {Packet} ({PType}) with a total length of {Length}: {@Data}", this.PacketId, this.PacketType, res.Length, res);
                 return res;
             }
         }
@@ -174,17 +175,17 @@ namespace NRLib
         /// <returns>A packet ID</returns>
         public static string GenPID(byte[] payload)
         {
-            var PacketID = "";
+            var packetId = "";
             using (var sha1 = SHA1.Create())
             {
                 byte[] hash = sha1.ComputeHash(payload);
                 for (int i = 0; i < 5; i++)
                 {
-                    PacketID += hash[i].ToString("x2");
+                    packetId += hash[i].ToString("x2");
                 }
             }
 
-            return PacketID;
+            return packetId;
         }
 
         private void _parseData(byte[] payload)
@@ -193,8 +194,8 @@ namespace NRLib
             {
                 throw new InvalidPayloadException("Payload was less than 10 bytes");
             }
-            PacketID = GenPID(payload);
-            Log.Debug("Parsing Packet ID {PacketID} (Transport {Transport}, Address {IP}) of length {Length}: {@Packet}", PacketID, TransType, ClientAddress, payload.Length, payload);
+            PacketId = GenPID(payload);
+            Log.Debug("Parsing Packet ID {PacketID} (Transport {Transport}, Address {IP}) of length {Length}: {@Packet}", PacketId, TransType, ClientAddress, payload.Length, payload);
             using(MemoryStream str = new MemoryStream(payload))
                 _fromStream(str);
         }
@@ -229,8 +230,8 @@ namespace NRLib
                 }
 
                 Data = reader.ReadBytes((int)cl);
-                PacketID = GenPID(Build(false));
-                Log.Debug("Finished parsing packet {PacketID}. Type {Type}, Nonce {Nonce}, Data Length {DataLen}", PacketID,
+                PacketId = GenPID(Build(false));
+                Log.Debug("Finished parsing packet {PacketID}. Type {Type}, Nonce {Nonce}, Data Length {DataLen}", PacketId,
                     PacketType, Nonce, Data.Length);
             }
         }

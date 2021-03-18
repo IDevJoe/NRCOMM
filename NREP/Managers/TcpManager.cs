@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
@@ -21,24 +20,21 @@ namespace NREP.Managers
 
         internal static Dictionary<Socket, List<AppManager.PublishedApp>> AppsByConnection =
             new Dictionary<Socket, List<AppManager.PublishedApp>>();
-        public static void StartTCP()
+        public static async Task StartTCP()
         {
             Random rand = new Random();
             PortNumber = rand.Next(6000, 7000);
             _listener = new TcpListener(IPAddress.Any, PortNumber);
             _listener.Start();
-            Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await TCPLoop();
-                }
-                catch (Exception e)
-                {
-                    Log.Fatal(e, "An error occurred while listening for connections");
-                    Environment.Exit(-1);
-                }
-            });
+                await TCPLoop();
+            }
+            catch (Exception e)
+            {
+                Log.Fatal(e, "An error occurred while listening for connections");
+                Environment.Exit(-1);
+            }
         }
 
         private static async Task TCPLoop()
@@ -59,12 +55,12 @@ namespace NREP.Managers
                     {
                         Log.Error(e, "An exception occurred while handling a TCP connection");
                         sock.Close();
-                        var x = AppConnection.Connections.Where(e =>
-                            e.Value.Connection.Socket == sock || e.Value.App.Connection.Socket == sock);
+                        var x = AppConnection.Connections.Where(e1 =>
+                            e1.Value.Connection.Socket == sock || e1.Value.App.Connection.Socket == sock);
                         foreach (var keyValuePair in x)
                         {
-                            Log.Debug("Closed virtual connection {SID} during cleanup", keyValuePair.Value.SocketId);
-                            keyValuePair.Value.ForceClose();
+                            Log.Debug("Closed virtual connection {Sid} during cleanup", keyValuePair.Value.SocketId);
+                            await keyValuePair.Value.ForceClose();
                         }
                         foreach(AppManager.PublishedApp app in AppsByConnection[sock])
                         {
@@ -76,6 +72,7 @@ namespace NREP.Managers
                     }
                 });
             }
+            // ReSharper disable once FunctionNeverReturns
         }
 
         public static async Task ConnectionHandler(Socket sock)
@@ -114,7 +111,7 @@ namespace NREP.Managers
                         await str2.AuthenticateAsServerAsync(ao);
                         if (!str2.IsMutuallyAuthenticated && SslManager.CACertificate != null)
                         {
-                            Log.Warning("Connection {IP} failed to authenticate in time", sock.RemoteEndPoint);
+                            Log.Warning("Connection {IP} failed to authenticate in time", sock.RemoteEndPoint.ToString());
                             sock.Close();
                             return;
                         }
@@ -146,7 +143,7 @@ namespace NREP.Managers
                 return false;
             }*/
 
-            bool s2 = SslManager.ValidateAgainstCA((X509Certificate2) certificate);
+            bool s2 = SslManager.ValidateAgainstCA((X509Certificate2) certificate).GetAwaiter().GetResult();
             if (!s2)
             {
                 Log.Error("SSL Validation failed for client against master CA");

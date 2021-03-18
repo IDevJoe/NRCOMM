@@ -10,39 +10,36 @@ namespace NREP.Managers
     public class UdpManager
     {
         private static UdpClient _client;
-        public static void StartUDP()
+        public static async Task StartUDP()
         {
             _client = new UdpClient(2888);
-            UdpLoop();
+            await UdpLoop();
         }
 
-        public static void Transmit(IPEndPoint ep, byte[] bytes)
+        public static async Task Transmit(IPEndPoint ep, byte[] bytes)
         {
-            _client.Send(bytes, bytes.Length, ep);
+            await _client.SendAsync(bytes, bytes.Length, ep);
             Log.Debug("Dispatched {Length} bytes to {Address} (Calculated ID {ID})", bytes.Length, ep, Packet.GenPID(bytes));
         }
 
-        private static void UdpLoop()
+        private static async Task UdpLoop()
         {
-            Log.Information("UDP server started.");
-            Task.Run(() =>
+            Log.Information("UDP server started");
+            while (true)
             {
-                while (true)
+                var udprr = await _client.ReceiveAsync();
+                Packet pack = null;
+                try
                 {
-                    IPEndPoint source = null;
-                    byte[] dgram = _client.Receive(ref source);
-                    Packet pack = null;
-                    try
-                    {
-                        pack = new Packet(dgram, source);
-                        CommsManager.Execute(pack);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Warning(e, "Error while parsing a packet. Possibly corrupted in transport.");
-                    }
+                    pack = new Packet(udprr.Buffer, udprr.RemoteEndPoint);
+                    CommsManager.Execute(pack);
                 }
-            });
+                catch (Exception e)
+                {
+                    Log.Warning(e, "Error while parsing a packet. Possibly corrupted in transport");
+                }
+            }
+            // ReSharper disable once FunctionNeverReturns
         }
     }
 }

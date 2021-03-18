@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using NRLib.Packets.Attributes;
 
 namespace NRLib.Packets
@@ -9,12 +8,12 @@ namespace NRLib.Packets
     [PacketHandler(PackType.TCP_CS_SOCKET_CONTROL)]
     public class TcpCSSocketControl : Packet
     {
-        public const byte OPEN_ACK = 1 << 7;
-        public const byte OPEN_REQUEST = 1 << 6;
-        public const byte ACCEPT_CONNECTION = 1 << 5;
-        public const byte REFUSE_CONNECTION = 1 << 4;
-        public const byte READY = 1 << 3;
-        public const byte CLOSE = 1 << 2;
+        public const byte OpenAck = 1 << 7;
+        public const byte OpenRequest = 1 << 6;
+        public const byte AcceptConnection = 1 << 5;
+        public const byte RefuseConnection = 1 << 4;
+        public const byte Ready = 1 << 3;
+        public const byte Close = 1 << 2;
 
         public byte[] SocketId { get; }
         public byte Flags { get; }
@@ -25,12 +24,12 @@ namespace NRLib.Packets
             get
             {
                 List<string> flags = new List<string>();
-                if(CheckFlag(OPEN_ACK)) flags.Add("OA");
-                if(CheckFlag(OPEN_REQUEST)) flags.Add("OR");
-                if(CheckFlag(ACCEPT_CONNECTION)) flags.Add("A");
-                if(CheckFlag(REFUSE_CONNECTION)) flags.Add("REF");
-                if(CheckFlag(READY)) flags.Add("REA");
-                if(CheckFlag(CLOSE)) flags.Add("C");
+                if(CheckFlag(OpenAck)) flags.Add("OA");
+                if(CheckFlag(OpenRequest)) flags.Add("OR");
+                if(CheckFlag(AcceptConnection)) flags.Add("A");
+                if(CheckFlag(RefuseConnection)) flags.Add("REF");
+                if(CheckFlag(Ready)) flags.Add("REA");
+                if(CheckFlag(Close)) flags.Add("C");
                 return string.Join(',', flags);
             }
         }
@@ -42,7 +41,7 @@ namespace NRLib.Packets
             {
                 SocketId = reader.ReadBytes(10);
                 Flags = reader.ReadByte();
-                if ((Flags & OPEN_REQUEST) == OPEN_REQUEST)
+                if ((Flags & OpenRequest) == OpenRequest)
                 {
                     InstanceId = reader.ReadBytes(10);
                 }
@@ -64,7 +63,7 @@ namespace NRLib.Packets
             {
                 writer.Write(socketId);
                 writer.Write(flags);
-                if((flags & OPEN_REQUEST) == OPEN_REQUEST)
+                if((flags & OpenRequest) == OpenRequest)
                     writer.Write(instanceId);
                 Data = stream.ToArray();
             }
