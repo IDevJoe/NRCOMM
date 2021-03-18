@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NRLib.Packets.Attributes;
@@ -55,6 +56,9 @@ namespace NRLib.Packets
 
         public TcpCSSocketControl(byte[] socketId, byte flags, uint nonce = 0, byte[] instanceId = null)
         {
+            if (socketId.Length != 10) throw new ArgumentException("SocketId is not 10 bytes");
+            if (instanceId != null && instanceId.Length != 10)
+                throw new ArgumentException("InstanceId is not 10 bytes.");
             using(MemoryStream stream = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(stream))
             {

@@ -7,7 +7,7 @@ namespace NRLib.Packets
     [PacketHandler(PackType.TCP_C_PUBLISH)]
     public class TcpCPublish : Packet
     {
-        public string Description;
+        public string Description { get; }
         public TcpCPublish(Packet packet)
         {
             using(MemoryStream stream = new MemoryStream(packet.Data))

@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 
 namespace NRLib
 {
+    /// <summary>
+    /// Represents an NRLib stream
+    /// </summary>
     public class NRStream : Stream
     {
         internal List<byte> _buffer = new List<byte>();

@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using NRLib.Packets.Attributes;
 
 namespace NRLib.Packets
@@ -6,8 +7,8 @@ namespace NRLib.Packets
     [PacketHandler(PackType.TCP_CS_SOCKET_DATA)]
     public class TcpCSSocketData : Packet
     {
-        public byte[] SocketId;
-        public byte[] SocketData;
+        public byte[] SocketId { get; }
+        public byte[] SocketData { get; }
         public TcpCSSocketData(Packet packet)
         {
             using(MemoryStream stream = new MemoryStream(packet.Data))
@@ -21,6 +22,7 @@ namespace NRLib.Packets
 
         public TcpCSSocketData(byte[] socketId, byte[] data)
         {
+            if (socketId.Length != 10) throw new ArgumentException("SocketId is not 10 bytes");
             using(MemoryStream stream = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(stream))
             {

@@ -9,14 +9,44 @@ using Serilog;
 
 namespace NRLib
 {
+    /// <summary>
+    /// Represents a sent/received packet
+    /// </summary>
     public class Packet
     {
+        /// <summary>
+        /// The type of packet
+        /// </summary>
         public PackType PacketType { get; protected set; }
+        
+        /// <summary>
+        /// The nonce
+        /// </summary>
         public uint Nonce { get; protected set; }
+        
+        /// <summary>
+        /// Packet Data
+        /// </summary>
         public byte[] Data { get; protected set; }
+        
+        /// <summary>
+        /// Auto generated packet ID
+        /// </summary>
         public string PacketID { get; private set; }
+        
+        /// <summary>
+        /// How the packet arrived. Only set if the packet was received.
+        /// </summary>
         public TransportType TransType { get; private set; }
+        
+        /// <summary>
+        /// The distant end IP address. Only set if the packet was received via UDP.
+        /// </summary>
         public IPEndPoint ClientAddress { get; private set; }
+        
+        /// <summary>
+        /// The associated TCP connection. Only set if the packet was received via TCP.
+        /// </summary>
         public TcpConnection Connection { get; private set; }
 
         public delegate void HandlePacket(Packet packet);
@@ -28,6 +58,11 @@ namespace NRLib
 
         private static Random _random = new Random();
 
+        /// <summary>
+        /// Stores a new packet routine
+        /// </summary>
+        /// <param name="type">Packet Type</param>
+        /// <param name="callback">Method to be called when the packet arrives</param>
         public static void StorePacketRoutine(PackType type, HandlePacket callback)
         {
             if (!PackRoutines.ContainsKey(type))
@@ -37,6 +72,11 @@ namespace NRLib
             PackRoutines[type].Add(callback);
         }
 
+        /// <summary>
+        /// Generates and stores a nonce, then calls the method when the packet is received
+        /// </summary>
+        /// <param name="callback">The method to call</param>
+        /// <returns>A nonce</returns>
         public static uint WatchNonce(HandlePacket callback)
         {
             uint nonce = (uint) _random.Next(0, Int32.MaxValue);
@@ -45,6 +85,9 @@ namespace NRLib
             return nonce;
         }
 
+        /// <summary>
+        /// Executes the packet
+        /// </summary>
         public void ExecuteRoutine()
         {
             if (NonceWatch.ContainsKey(Nonce))
@@ -68,6 +111,11 @@ namespace NRLib
             TCP
         }
         
+        /// <summary>
+        /// Creates a new packet with the specified payload and UDP endpoint
+        /// </summary>
+        /// <param name="payload">The received payload</param>
+        /// <param name="clientAddress">A client IP address</param>
         public Packet(byte[] payload, IPEndPoint clientAddress)
         {
             TransType = TransportType.UDP;
@@ -75,6 +123,11 @@ namespace NRLib
             _parseData(payload);
         }
 
+        /// <summary>
+        /// Creates a new packet from a stream
+        /// </summary>
+        /// <param name="stream">The stream to read from</param>
+        /// <param name="connection">The associated connection</param>
         public Packet(Stream stream, TcpConnection connection)
         {
             TransType = TransportType.TCP;
@@ -87,6 +140,11 @@ namespace NRLib
             
         }
 
+        /// <summary>
+        /// Builds a new packet using the set data
+        /// </summary>
+        /// <param name="output">Whether to log the packet build</param>
+        /// <returns>The built packet bytes</returns>
         public byte[] Build(bool output = true)
         {
             using(MemoryStream str = new MemoryStream())
@@ -109,6 +167,11 @@ namespace NRLib
             ExecuteRoutine();
         }
 
+        /// <summary>
+        /// Generates a packet ID using SHA1
+        /// </summary>
+        /// <param name="payload">The packet payload</param>
+        /// <returns>A packet ID</returns>
         public static string GenPID(byte[] payload)
         {
             var PacketID = "";

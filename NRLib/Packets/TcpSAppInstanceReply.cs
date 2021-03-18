@@ -8,7 +8,7 @@ namespace NRLib.Packets
     [PacketHandler(PackType.TCP_S_APP_INSTANCE_REPLY)]
     public class TcpSAppInstanceReply : Packet
     {
-        public byte[][] Instances;
+        public byte[][] Instances { get; }
         public TcpSAppInstanceReply(Packet pa)
         {
             using(MemoryStream stream = new MemoryStream(pa.Data))

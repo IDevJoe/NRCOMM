@@ -6,22 +6,64 @@ using NRLib.Packets;
 
 namespace NRLib
 {
+    /// <summary>
+    /// Represents a live connection to an app
+    /// </summary>
     public class AppConnection
     {
+        /// <summary>
+        /// The application instance ID
+        /// </summary>
         public byte[] InstanceId { get; }
-        public byte[] SocketId;
+        
+        /// <summary>
+        /// The socket ID
+        /// </summary>
+        public byte[] SocketId { get; internal set; }
+        
+        /// <summary>
+        /// The associated entry point
+        /// </summary>
         public EntryPoint EP { get; }
-        public bool Open = false;
-        public bool Requestor = false;
-        public bool Loopback = false;
-        public TaskCompletionSource<bool> ConnectCompletionSource;
+        
+        /// <summary>
+        /// True if the socket is open
+        /// </summary>
+        public bool Open { get; internal set; }
+        
+        /// <summary>
+        /// True if the instance is the initial requestor
+        /// </summary>
+        public bool Requestor { get; private set; }
+        
+        /// <summary>
+        /// True if the connection has been detected as a loopback
+        /// </summary>
+        public bool Loopback { get; internal set; }
+        internal TaskCompletionSource<bool> ConnectCompletionSource { get; private set; }
+        
+        /// <summary>
+        /// The data stream
+        /// </summary>
         public NRStream Stream { get; private set; }
+        
+        /// <summary>
+        /// Defines a new app connection
+        /// </summary>
+        /// <param name="instanceId">The instance ID of the app to connect to</param>
+        /// <param name="ep">The entry point to connect through</param>
         public AppConnection(byte[] instanceId, EntryPoint ep)
         {
+            if (instanceId.Length != 10) throw new ArgumentException("InstanceId is not 10 bytes");
             InstanceId = instanceId;
             EP = ep;
         }
         
+        /// <summary>
+        /// Converts a byte ID to a string ID
+        /// </summary>
+        /// <param name="id">The byte ID</param>
+        /// <returns>A string version of the ID</returns>
         public static string IdToString(byte[] id)
         {
             string s = "";
@@ -33,6 +75,11 @@ namespace NRLib
             return s;
         }
 
+        /// <summary>
+        /// Initiates the connection to the app
+        /// </summary>
+        /// <returns>An async Task</returns>
+        /// <exception cref="Exception">Thrown if the connection is refused</exception>
         public async Task Connect()
         {
             if (SocketId != null) return;
@@ -66,33 +113,52 @@ namespace NRLib
             EP._tcpConnection.Stream.Write(pa.Build());
         }
 
-        public void Accept()
+        /// <summary>
+        /// Accepts the connection
+        /// </summary>
+        public async Task Accept()
         {
-            if ((Requestor && !Loopback) || Open) return;
-            TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.ACCEPT_CONNECTION);
-            EP._tcpConnection.Stream.Write(control.Build());
-            Open = true;
-        }
-
-        public void Refuse()
-        {
-            if ((Requestor && !Loopback) || Open) return;
-            TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.REFUSE_CONNECTION);
-            EP._tcpConnection.Stream.Write(control.Build());
-            Close(false);
-        }
-
-        public void Close(bool sendPack = true)
-        {
-            if (!Open) return;
-            if (sendPack)
+            await Task.Run(() =>
             {
-                TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.CLOSE);
+                if ((Requestor && !Loopback) || Open) return;
+                TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.ACCEPT_CONNECTION);
                 EP._tcpConnection.Stream.Write(control.Build());
-            }
+                Open = true;
+            });
+        }
 
-            Stream.Close();
-            EP.Connections.Remove(IdToString(SocketId));
+        /// <summary>
+        /// Refuses the connection
+        /// </summary>
+        public async Task Refuse()
+        {
+            await Task.Run(() =>
+            {
+                if ((Requestor && !Loopback) || Open) return;
+                TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.REFUSE_CONNECTION);
+                EP._tcpConnection.Stream.Write(control.Build());
+                Close(false);
+            });
+        }
+
+        /// <summary>
+        /// Closes the connection
+        /// </summary>
+        /// <param name="sendPack">Whether to send the payload. Usually this is true.</param>
+        public async Task Close(bool sendPack = true)
+        {
+            await Task.Run(() =>
+            {
+                if (!Open) return;
+                if (sendPack)
+                {
+                    TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.CLOSE);
+                    EP._tcpConnection.Stream.Write(control.Build());
+                }
+
+                Stream.Close();
+                EP.Connections.Remove(IdToString(SocketId));
+            });
         }
     }
 }

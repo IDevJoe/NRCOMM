@@ -13,6 +13,10 @@ namespace NRLib
     public class NRL
     {
         private static bool _init = false;
+        
+        /// <summary>
+        /// Initializes NRLib
+        /// </summary>
         public static void Initialize()
         {
             if (_init) return;
@@ -24,14 +28,14 @@ namespace NRLib
 
             _init = true;
         }
-        public static string AppName { get; private set; }
-        public static void SetAppName(string name)
-        {
-            AppName = name;
-        }
 
         public delegate void EntryPointCallback(EntryPoint ep);
 
+        /// <summary>
+        /// Finds entry points on the local network
+        /// </summary>
+        /// <param name="callback">A callback to be called when new entry points are discovered, nullable</param>
+        /// <returns>A list of entry points</returns>
         public static async Task<EntryPoint[]> FindEntryPoints(EntryPointCallback callback = null)
         {
             Initialize();

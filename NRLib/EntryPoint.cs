@@ -14,6 +14,9 @@ using Serilog;
 
 namespace NRLib
 {
+    /// <summary>
+    /// Represents an entry point
+    /// </summary>
     public class EntryPoint
     {
         public class StoredApp
@@ -26,15 +29,24 @@ namespace NRLib
 
         private List<StoredApp> _registeredApps = new List<StoredApp>();
 
+        /// <summary>
+        /// The remote address
+        /// </summary>
         public IPEndPoint Address { get; }
+        /// <summary>
+        /// The remote X509 Certificate
+        /// </summary>
         public X509Certificate2 Certificate { get; }
         private TcpClient _tcp;
         
+        /// <summary>
+        /// The client certificate used to authenticate
+        /// </summary>
         public X509Certificate2 ClientCertificate { get; private set; }
 
         internal TcpConnection _tcpConnection;
 
-        public Dictionary<string, AppConnection> Connections = new Dictionary<string, AppConnection>();
+        internal Dictionary<string, AppConnection> Connections = new Dictionary<string, AppConnection>();
 
         internal EntryPoint(IPEndPoint ep, X509Certificate2 cert)
         {
@@ -42,6 +54,11 @@ namespace NRLib
             Certificate = cert;
         }
 
+        /// <summary>
+        /// Initiates a connection to the entry point
+        /// </summary>
+        /// <param name="cert">An X509 certificate to authenticate with</param>
+        /// <returns>An async task</returns>
         public async Task Connect(X509Certificate2 cert)
         {
             if (_tcp != null) return;
@@ -62,13 +79,20 @@ namespace NRLib
             });
         }
 
-        public void Close()
+        /// <summary>
+        /// Closes the connection
+        /// </summary>
+        /// <returns></returns>
+        public async Task Close()
         {
-            if (_tcp != null)
+            await Task.Run(() =>
             {
-                _tcp.Close();
-                _tcp = null;
-            }
+                if (_tcp != null)
+                {
+                    _tcp.Close();
+                    _tcp = null;
+                }
+            });
         }
 
         private async Task BeginLoop()
@@ -127,7 +151,13 @@ namespace NRLib
 
         public delegate void ConnectionEstablishCallback(AppConnection dataStream);
 
-        public void Publish(string description, ConnectionEstablishCallback callback)
+        /// <summary>
+        /// Publishes a new app to the entry point
+        /// </summary>
+        /// <param name="description">The app description</param>
+        /// <param name="callback">A callback for when connections become established</param>
+        /// <returns>A task</returns>
+        public async Task Publish(string description, ConnectionEstablishCallback callback)
         {
             if (_tcp == null || !_tcp.Connected) return;
             uint n = Packet.WatchNonce(packet =>
@@ -144,9 +174,14 @@ namespace NRLib
             });
             var pub = new TcpCPublish(description, n);
             byte[] x = pub.Build();
-            _tcpConnection.Stream.Write(x);
+            await _tcpConnection.Stream.WriteAsync(x);
         }
 
+        /// <summary>
+        /// Discovers apps on the network
+        /// </summary>
+        /// <param name="description">The app description to search for</param>
+        /// <returns>An array of instance IDs for running apps</returns>
         public async Task<byte[][]> DiscoverApps(string description)
         {
             byte[] AppId = new byte[10];

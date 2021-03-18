@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using NRLib.Packets.Attributes;
 
 namespace NRLib.Packets
@@ -6,7 +7,7 @@ namespace NRLib.Packets
     [PacketHandler(PackType.TCP_C_DISCOVER_APP_INSTANCES)]
     public class TcpCDiscoverAppInstances : Packet
     {
-        public byte[] AppId { get; private set; }
+        public byte[] AppId { get; }
         public TcpCDiscoverAppInstances(Packet pack)
         {
             using(MemoryStream stream = new MemoryStream(pack.Data))
@@ -18,6 +19,7 @@ namespace NRLib.Packets
 
         public TcpCDiscoverAppInstances(byte[] appId, uint nonce)
         {
+            if (appId.Length != 10) throw new ArgumentException("AppId is not 10 bytes");
             using(MemoryStream stream = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(stream))
             {

@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using NRLib.Packets.Attributes;
 
 namespace NRLib.Packets
@@ -7,9 +8,9 @@ namespace NRLib.Packets
     [PacketHandler(PackType.TCP_S_PUBLISH_REPLY)]
     public class TcpSPublishReply : Packet
     {
-        public bool Success;
-        public byte[] AppId;
-        public byte[] InstanceId;
+        public bool Success { get; }
+        public byte[] AppId { get; }
+        public byte[] InstanceId { get; }
 
         public string ReadableAppId
         {
@@ -52,6 +53,8 @@ namespace NRLib.Packets
 
         public TcpSPublishReply(bool success, byte[] appId, byte[] instanceId, uint nonce)
         {
+            if (appId.Length != 10) throw new ArgumentException("AppId is not 10 bytes");
+            if (instanceId.Length != 10) throw new ArgumentException("InstanceId is not 10 bytes");
             Success = success;
             AppId = appId;
             InstanceId = instanceId;

@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using NRLib.Packets.Attributes;
 
 namespace NRLib.Packets
@@ -19,6 +20,7 @@ namespace NRLib.Packets
         
         public TcpCOpenSocket(byte[] instanceId, uint nonce)
         {
+            if (instanceId.Length != 10) throw new ArgumentException("InstanceId is not 10 bytes.");
             using(MemoryStream stream = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(stream))
             {
