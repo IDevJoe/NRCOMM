@@ -77,7 +77,7 @@ namespace NREP
                 newControl |= TcpCSSocketControl.Close;
                 Connections.Remove(IdToString(SocketId));
             }
-            await Connection.Stream.WriteAsync((new TcpCSSocketControl(SocketId, newControl)).Build());
+            await App.Connection.Stream.WriteAsync((new TcpCSSocketControl(SocketId, newControl)).Build());
         }
 
         public async Task ProcessRecControl(TcpCSSocketControl control)

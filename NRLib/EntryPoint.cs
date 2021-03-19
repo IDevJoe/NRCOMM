@@ -227,6 +227,7 @@ namespace NRLib
                     Log.Debug("Connection {Sid} switched to loopback mode", pa.SocketId);
                 }
                 app = ep._registeredApps.FirstOrDefault(e => e.InstanceId.SequenceEqual(x.InstanceId));
+                ep.Connections.Add(AppConnection.IdToString(pa.SocketId), x);
                 await app.Callback(x);
             }
             if (x == null)
@@ -246,6 +247,13 @@ namespace NRLib
                 {
                     x.ConnectCompletionSource.SetResult(false);
                 }
+
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(500);
+                    await x.Close();
+                });
+                
             }
         }
 

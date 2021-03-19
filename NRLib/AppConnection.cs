@@ -90,7 +90,7 @@ namespace NRLib
                     SocketId = control.SocketId;
                     EP.Connections.Add(IdToString(control.SocketId), this);
                     Requestor = true;
-                    Stream = new NRStream();
+                    Stream = new NRStream(this);
                     Stream.OnSend += StreamOn_onSend;
                     if (control.CheckFlag(TcpCSSocketControl.Close))
                     {
@@ -122,6 +122,8 @@ namespace NRLib
             await Task.Run(() =>
             {
                 if ((Requestor && !Loopback) || Open) return;
+                Stream = new NRStream(this);
+                Stream.OnSend += StreamOn_onSend;
                 TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.AcceptConnection);
                 EP.TCPConnection.Stream.Write(control.Build());
                 Open = true;
@@ -148,13 +150,14 @@ namespace NRLib
             await Task.Run(() =>
             {
                 if (!Open) return;
+                Open = false;
                 if (sendPack)
                 {
                     TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.Close);
                     EP.TCPConnection.Stream.Write(control.Build());
                 }
 
-                Stream.Close();
+                if(Stream != null && Stream.IsOpen) Stream.Close();
                 EP.Connections.Remove(IdToString(SocketId));
             });
         }
