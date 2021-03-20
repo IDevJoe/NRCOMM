@@ -91,15 +91,13 @@ namespace NRLib
                     EP.Connections.Add(IdToString(control.SocketId), this);
                     Requestor = true;
                     Stream = new NRStream(this);
-                    Stream.OnSend += StreamOn_onSend;
                     if (control.CheckFlag(TcpCSSocketControl.Close))
                     {
                         ConnectCompletionSource.SetResult(false);
                     }
                 });
             });
-            byte[] bt = new TcpCOpenSocket(InstanceId, nonce).Build();
-            await EP.TCPConnection.Stream.WriteAsync(bt);
+            EP.TransmitRaw(new TcpCOpenSocket(InstanceId, nonce));
             bool success = await ConnectCompletionSource.Task;
             if (!success)
             {
@@ -108,10 +106,10 @@ namespace NRLib
             }
         }
 
-        private void StreamOn_onSend(byte[] bytes)
+        internal async Task SendRaw(byte[] bytes)
         {
             var pa = new TcpCSSocketData(SocketId, bytes);
-            EP.TCPConnection.Stream.Write(pa.Build());
+            await Task.Run(() => EP.TransmitRaw(pa));
         }
 
         /// <summary>
@@ -123,7 +121,6 @@ namespace NRLib
             {
                 if ((Requestor && !Loopback) || Open) return;
                 Stream = new NRStream(this);
-                Stream.OnSend += StreamOn_onSend;
                 TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.AcceptConnection);
                 EP.TCPConnection.Stream.Write(control.Build());
                 Open = true;
@@ -154,7 +151,7 @@ namespace NRLib
                 if (sendPack)
                 {
                     TcpCSSocketControl control = new TcpCSSocketControl(SocketId, TcpCSSocketControl.Close);
-                    EP.TCPConnection.Stream.Write(control.Build());
+                    EP.TransmitRaw(control);
                 }
 
                 if(Stream != null && Stream.IsOpen) Stream.Close();

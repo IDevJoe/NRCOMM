@@ -31,7 +31,24 @@ namespace PortConnector
             Log.Debug("Pipe launched");
             var netstr = Stream1.GetStream();
             var nrstr = Stream2.Stream;
-            var t1 = Task.Run(async () =>
+            Task x = await Task.WhenAny(netstr.CopyToAsync(nrstr, src.Token), nrstr.CopyToAsync(netstr, src.Token));
+            if(x.Exception != null)
+                Log.Error(x.Exception, "exception");
+
+            await Task.Run(async () =>
+            {
+                if(nrstr.IsOpen)
+                    while (true)
+                    {
+                        if (!netstr.DataAvailable)
+                        {
+                            break;
+                        }
+                    }
+            });
+            
+            src.Cancel();
+            /*var t1 = Task.Run(async () =>
             {
                 while (true)
                 {
@@ -69,7 +86,7 @@ namespace PortConnector
                 }
             }, src.Token);
             await t1;
-            await t2;
+            await t2;*/
             try
             {
                 Log.Debug("Thread ended");
@@ -85,7 +102,7 @@ namespace PortConnector
 
         private async Task<bool> Convert(Stream source, Stream dest, CancellationToken token)
         {
-            byte[] buffer = new byte[2048];
+            byte[] buffer = new byte[1024 * 20];
             var x = await source.ReadAsync(buffer, 0, buffer.Length, token);
             if (x == 0) return false;
             await dest.WriteAsync(buffer, 0, x);

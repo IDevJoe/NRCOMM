@@ -35,7 +35,7 @@ namespace NREP.Managers
             
             Stopwatch watch = new Stopwatch();
             watch.Start();
-            packet.Handle();
+            packet.ExecuteRoutine();
             watch.Stop();
             Log.Debug("Packet {Packet} completed execution in {Time:000}ms using handler {Handler}", packet.PacketId, watch.ElapsedMilliseconds, typ);
         }

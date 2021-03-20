@@ -23,6 +23,8 @@ namespace NRLib
             {
                 Log.Logger = new LoggerConfiguration().WriteTo.Console().MinimumLevel.Debug().CreateLogger();
             }
+
+            _ = PacketWorker.Run();
             PacketHandler.Associate();
 
             _init = true;

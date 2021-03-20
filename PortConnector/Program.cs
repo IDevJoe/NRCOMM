@@ -6,7 +6,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Mono.Options;
-using Nerdbank.Streams;
 using NRLib;
 using Serilog;
 using Serilog.Events;

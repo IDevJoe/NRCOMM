@@ -109,7 +109,12 @@ namespace NRLib
                     while (true)
                     {
                         Packet pkt = new Packet(stream, TCPConnection);
-                        pkt.ExecuteRoutine();
+                        PacketWorker.Queue.Add(new PacketWorker.QueuedPacket()
+                        {
+                            Entry = this,
+                            Packet = pkt,
+                            Rx = true
+                        });
                     }
                 }
                 else
@@ -136,11 +141,26 @@ namespace NRLib
                         while (true)
                         {
                             Packet pkt = new Packet(str2, TCPConnection);
-                            pkt.ExecuteRoutine();
+                            PacketWorker.Queue.Add(new PacketWorker.QueuedPacket()
+                            {
+                                Entry = this,
+                                Packet = pkt,
+                                Rx = true
+                            });
                         }
                     }
                 }
             }
+        }
+
+        public void TransmitRaw(Packet pack)
+        {
+            PacketWorker.Queue.Add(new PacketWorker.QueuedPacket()
+            {
+                Rx = false,
+                Entry = this,
+                Packet = pack
+            });
         }
 
         private bool RemoteCertificateValidationCallback(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslpolicyerrors)
@@ -175,8 +195,7 @@ namespace NRLib
                 });
             });
             var pub = new TcpCPublish(description, n);
-            byte[] x = pub.Build();
-            await TCPConnection.Stream.WriteAsync(x);
+            TransmitRaw(pub);
         }
 
         /// <summary>
@@ -259,15 +278,13 @@ namespace NRLib
 
         public static async Task StandardDataHandler(Packet packet)
         {
-            await Task.Run(() =>
-            {
-                TcpCSSocketData data = new TcpCSSocketData(packet);
-                var ep = ((EntryPoint) packet.Connection.Ref);
-                AppConnection x = null;
-                ep.Connections.TryGetValue(AppConnection.IdToString(data.SocketId), out x);
-                if (x == null) return;
-                x.Stream.Buffer.AddRange(data.SocketData);
-            });
+            TcpCSSocketData data = new TcpCSSocketData(packet);
+            var ep = ((EntryPoint) packet.Connection.Ref);
+            AppConnection x = null;
+            ep.Connections.TryGetValue(AppConnection.IdToString(data.SocketId), out x);
+            if (x == null) return;
+            Log.Debug("Signatures for {Pid}: {StartSig} {EndSig}", packet.PacketId, data.SocketData.Take(10).ToArray(), data.SocketData.TakeLast(10).ToArray());
+            await x.Stream.Pipeline.Writer.WriteAsync(data.SocketData);
         }
     }
 }

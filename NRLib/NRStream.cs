@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace NRLib
 {
@@ -11,20 +14,9 @@ namespace NRLib
     /// </summary>
     public class NRStream : Stream
     {
-        internal List<byte> Buffer = new List<byte>();
-        internal event Send OnSend;
+        internal Pipe Pipeline;
 
         internal AppConnection Connection;
-
-        public int Available
-        {
-            get
-            {
-                return Buffer.Count;
-            }
-        }
-
-        public delegate void Send(byte[] bytes);
 
         private CancellationTokenSource _cts = new CancellationTokenSource();
 
@@ -36,6 +28,7 @@ namespace NRLib
             Length = -1;
             Connection = connection;
             IsOpen = true;
+            Pipeline = new Pipe();
         }
 
         public override void Close()
@@ -49,7 +42,7 @@ namespace NRLib
 
         public override void Flush()
         {
-            Buffer.Clear();
+            Pipeline.Reset();
         }
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -59,37 +52,64 @@ namespace NRLib
 
         private int Read(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            if (Buffer.Count < count)
-            {
-                Task.Run(() =>
-                {
-                    while (true)
-                    {
-                        if (Buffer.Count > 0) break;
-                        if (token.IsCancellationRequested) break;
-                        if (_cts.IsCancellationRequested) break;
-                        Task.Delay(50).GetAwaiter().GetResult();
-                    }
-                }).GetAwaiter().GetResult();
-            }
-
-            if (token.IsCancellationRequested && Available == 0) return 0;
-            if (_cts.IsCancellationRequested) throw new Exception("Socket was closed.");
+            if (token.IsCancellationRequested) return 0;
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (offset + count > buffer.Length)
                 throw new ArgumentException("The sum of offset and count is larger than the buffer length.");
             if (offset < 0 || count < 0)
                 throw new ArgumentOutOfRangeException("buffer", "buffer or offset are negative");
-            int read = 0;
-            for (int i = offset; i < offset+count; i++)
+            while (true)
             {
-                if (Buffer.Count == 0) break;
+                ReadResult rr = new ReadResult();
+                if (_cts.IsCancellationRequested) throw new Exception("Socket was closed.");
+                if (token.IsCancellationRequested) return 0;
+                bool success = Pipeline.Reader.TryRead(out rr);
+                if (!success)
+                {
+                    Task.Delay(50).GetAwaiter().GetResult();
+                    continue;
+                }
+                byte[] b = rr.Buffer.ToArray();
+
+
+                if (b.Length > count)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        buffer[i] = b[i];
+                    }
+                    Pipeline.Reader.AdvanceTo(rr.Buffer.GetPosition(count));
+                    return count;
+                }
+                for (int i = 0; i < b.Length; i++)
+                {
+                    buffer[i] = b[i];
+                }
+                Pipeline.Reader.AdvanceTo(rr.Buffer.End);
+
+                return b.Length;
+            }
+
+            /*ReadResult res = Pipeline.Reader.ReadAsync(token).GetAwaiter().GetResult();
+            if (res.IsCanceled) return 0;
+            
+            
+            read = buffer.Length;
+            if (DebugFiles)
+                _readDebug.Write(buffer);
+            /*for (int i = offset; i < offset+count; i++)
+            {
+                if (Buffer.Length == 0) break;
                 buffer[i] = Buffer[0];
                 Buffer.RemoveAt(0);
                 read++;
-            }
+                if (DebugFiles)
+                    _readDebug.WriteByte(buffer[i]);
+            }#1#
+            if(DebugFiles)
+                Log.Debug("Debug Files Read Range End: {End}", _readDebug.Position);*/
 
-            return read;
+            return 0;
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -115,7 +135,7 @@ namespace NRLib
                 read[i - offset] = buffer[i];
             }
 
-            OnSend?.Invoke(read);
+            Connection.SendRaw(read).GetAwaiter().GetResult();
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)

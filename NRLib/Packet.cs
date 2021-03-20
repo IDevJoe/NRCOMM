@@ -89,12 +89,12 @@ namespace NRLib
         /// <summary>
         /// Executes the packet
         /// </summary>
-        public void ExecuteRoutine()
+        public async Task ExecuteRoutine()
         {
             if (NonceWatch.ContainsKey(Nonce))
             {
                 Log.Debug("Nonce {Nonce} executed as {PacketType}", Nonce, PacketType);
-                _ = NonceWatch[Nonce](this);
+                await NonceWatch[Nonce](this);
                 NonceWatch.Remove(Nonce);
                 return;
             }
@@ -102,7 +102,7 @@ namespace NRLib
             if (!PackRoutines.ContainsKey(PacketType)) return;
             foreach (var callback in PackRoutines[PacketType])
             {
-                _ = callback(this);
+                await callback(this);
             }
         }
 
@@ -163,10 +163,10 @@ namespace NRLib
             }
         }
 
-        public virtual void Handle()
+        /*public virtual void Handle()
         {
-            ExecuteRoutine();
-        }
+            //ExecuteRoutine();
+        }*/
 
         /// <summary>
         /// Generates a packet ID using SHA1
